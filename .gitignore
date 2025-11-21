@@ -1,0 +1,12 @@
+# Ignore everything
+*
+
+# Allow gitignore file
+!.gitignore
+
+# Allow folders
+!/src/
+!src/**
+
+# Allow single files
+!/*.py

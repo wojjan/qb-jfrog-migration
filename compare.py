@@ -2,6 +2,7 @@ import os
 import zipfile
 import logging
 import sys
+import argparse
 
 # Configure logging to both file and screen
 logging.basicConfig(
@@ -12,6 +13,31 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+
+import argparse
+import logging
+import sys
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compare two folders (including zip files).")
+    parser.add_argument('--folder_a', type=str, help='Path to folder A')
+    parser.add_argument('--folder_b', type=str, help='Path to folder B')
+    parser.add_argument('--folders_file', type=str, help='File containing paths to A and B, one per line')
+    return parser.parse_args()
+
+def get_folders_from_file(file_path):
+    abs_path = os.path.abspath(file_path)
+    if not os.path.exists(abs_path):
+        logging.error(f"Input arguments file not found: {abs_path}")
+        print(f"ERROR: Input arguments file not found: {abs_path}")
+        sys.exit(1)
+    with open(abs_path, 'r') as f:
+        lines = [line.strip() for line in f if line.strip()]
+    if len(lines) < 2:
+        logging.error(f"Input arguments file {abs_path} must contain at least two lines (A and B paths).")
+        print(f"ERROR: Input arguments file {abs_path} must contain at least two lines (A and B paths).")
+        sys.exit(1)
+    return lines[0], lines[1]
 
 def list_files_in_folder(folder, counters):
     files = []
@@ -60,9 +86,20 @@ def compare_folders(folder_a, folder_b):
             counters['found'] += 1
     return missing, counters
 
+
 if __name__ == "__main__":
-    A = r"C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\MAIN\SPS_E5_06.01.04.211.0"
-    B = r"C:\repository\qb-jenkins-migration\download-qb\SPS_E5_06.01.04.211.0"
+
+    #A = r"C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\MAIN\SPS_E5_06.01.04.211.0"
+    #B = r"C:\repository\qb-jenkins-migration\download-qb\SPS_E5_06.01.04.211.0"
+
+    args = parse_args()
+    if args.folders_file:
+        A, B = get_folders_from_file(args.folders_file)
+    elif args.folder_a and args.folder_b:
+        A, B = args.folder_a, args.folder_b
+    else:
+        print("You must specify either --folders_file or both --folder_a and --folder_b")
+        sys.exit(1)
 
     missing_files, counters = compare_folders(A, B)
 
@@ -78,3 +115,5 @@ if __name__ == "__main__":
             logging.warning("  " + f)
     else:
         logging.info("All files from A exist in B!")
+
+

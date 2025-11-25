@@ -101,54 +101,76 @@ def compare_folders(folder_a, folder_b):
     counters = {'processed': 0, 'found': 0, 'unpacked': 0, 'missing': 0}
     missing = []
 
+    # Output files
+    present_file = open("present.txt", "w", encoding="utf-8")
+    present_zip_file = open("present_in_zip.txt", "w", encoding="utf-8")
+    missing_file = open("missing.txt", "w", encoding="utf-8")
+
     files_a = list_files_in_folder(folder_a, counters)
 
     for rel in files_a:
         counters['processed'] += 1
 
-        # direct path
         target_full = os.path.join(folder_b, rel)
 
+        # -------------------------------------------
+        # CASE 1 — file exists directly in folder_b
+        # -------------------------------------------
         if os.path.exists(target_full):
             logging.info(f"Present: {rel}")
             counters['found'] += 1
+            present_file.write(rel + "\n")
             continue
 
-        # maybe inside a ZIP
+        # -------------------------------------------
+        # CASE 2 — maybe inside ZIP
+        # -------------------------------------------
         parts = rel.split(os.sep)
         found = False
 
         for i in range(len(parts)):
             if parts[i].lower().endswith('.zip'):
                 zip_path = os.path.join(folder_b, *parts[:i+1])
-
                 remaining = parts[i+1:]
 
-                # If there is no inner file (e.g. "file.zip"), skip
-                if len(remaining) == 0:
+                if not remaining:
                     continue
 
                 inner_file = os.path.join(*remaining)
 
                 if os.path.exists(zip_path) and file_in_zip(zip_path, inner_file):
-                    #logging.info(f"Present inside ZIP: {rel}  (ZIP: {zip_path})")
+
                     logging.info(
                         "Present inside ZIP:\n"
                         f"  File: {rel}\n"
                         f"  ZIP : {zip_path}"
                     )
 
-
                     counters['found'] += 1
+
+                    # write to both "present" and "present_in_zip"
+                    present_file.write(f"{rel}  [ZIP: {zip_path}]\n")
+                    present_zip_file.write(f"{rel}  [ZIP: {zip_path}]\n")
+
                     found = True
                     break
 
+        # -------------------------------------------
+        # CASE 3 — missing file
+        # -------------------------------------------
         if not found:
             logging.warning(f"Missing: {rel}")
             counters['missing'] += 1
             missing.append(rel)
+            missing_file.write(rel + "\n")
+
+    # Close files
+    present_file.close()
+    present_zip_file.close()
+    missing_file.close()
 
     return missing, counters
+
 
 
 # ---------------------------------------------

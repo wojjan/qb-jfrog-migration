@@ -69,28 +69,13 @@ def file_in_zip(zip_path, inner_path):
 # ---------------------------------------------
 # List all files (including zip-internal) recursively
 # ---------------------------------------------
-def list_files_in_folder(folder, counters):
+def list_files_in_folder(folder):
     files = []
-
     for root, _, filenames in os.walk(folder):
         for filename in filenames:
             full_path = os.path.join(root, filename)
             rel_path = os.path.relpath(full_path, folder)
-
-            if filename.lower().endswith('.zip'):
-                try:
-                    with zipfile.ZipFile(full_path, 'r') as z:
-                        for zipinfo in z.infolist():
-                            if not zipinfo.is_dir():
-                                entry = os.path.join(rel_path, zipinfo.filename)
-                                files.append(entry)
-                                counters['unpacked'] += 1
-                                logging.info(f"ZIP: {rel_path} -> {zipinfo.filename}")
-                except Exception as e:
-                    logging.error(f"Cannot read ZIP: {full_path}: {e}")
-            else:
-                files.append(rel_path)
-
+            files.append(rel_path)
     return files
 
 

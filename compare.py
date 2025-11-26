@@ -82,7 +82,7 @@ def list_files_in_folder(folder):
 # ---------------------------------------------
 # Compare A → B
 # ---------------------------------------------
-def compare_folders(folder_a, folder_b):
+def compare_folders_inside_zip_files_too(folder_a, folder_b):
     counters = {'processed': 0, 'found': 0, 'unpacked': 0, 'missing': 0}
     missing = []
 
@@ -156,6 +156,23 @@ def compare_folders(folder_a, folder_b):
 
     return missing, counters
 
+
+def compare_folders(folder_a, folder_b):
+    files_a = set(list_files_in_folder(folder_a))
+    files_b = set(list_files_in_folder(folder_b))
+
+    missing = files_a - files_b
+    extra = files_b - files_a
+
+    # Output results
+    with open("missing.txt", "w", encoding="utf-8") as f:
+        for rel in sorted(missing):
+            f.write(rel + "\n")
+    with open("extra.txt", "w", encoding="utf-8") as f:
+        for rel in sorted(extra):
+            f.write(rel + "\n")
+
+    return missing, extra
 
 
 # ---------------------------------------------

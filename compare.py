@@ -72,6 +72,7 @@ def file_in_zip(zip_path, inner_path):
 def list_files_in_folder(folder):
     files = []
     for root, _, filenames in os.walk(folder):
+        #logging.info(f"Walking: {root}")
         for filename in filenames:
             full_path = os.path.join(root, filename)
             rel_path = os.path.relpath(full_path, folder)
@@ -159,10 +160,13 @@ def compare_folders_inside_zip_files_too(folder_a, folder_b):
 
 def compare_folders(folder_a, folder_b):
     files_a = set(list_files_in_folder(folder_a))
+    #logging.info(f"files_a = {files_a}")
     files_b = set(list_files_in_folder(folder_b))
+    #logging.info(f"files_b = {files_b}")
 
     missing = files_a - files_b
     extra = files_b - files_a
+    present = files_a & files_b
 
     # Output results
     with open("missing.txt", "w", encoding="utf-8") as f:
@@ -171,15 +175,19 @@ def compare_folders(folder_a, folder_b):
     with open("extra.txt", "w", encoding="utf-8") as f:
         for rel in sorted(extra):
             f.write(rel + "\n")
+    with open("present.txt", "w", encoding="utf-8") as f:
+        for rel in sorted(present):
+            f.write(rel + "\n")
+            logging.info(f"Present: {rel}")
 
-    return missing, extra
+    return missing, extra, present
+
 
 
 # ---------------------------------------------
 # MAIN
 # ---------------------------------------------
 if __name__ == "__main__":
-
     args = parse_args()
 
     if args.folders_file:
@@ -190,7 +198,17 @@ if __name__ == "__main__":
         print("You must specify either --folders_file or both --folder_a and --folder_b")
         sys.exit(1)
 
-    missing_files, counters = compare_folders(A, B)
+    # --- Add verification for folder existence ---
+    if not os.path.exists(A):
+        logging.error(f"Folder A does not exist: {A}")
+        print(f"ERROR: Folder A does not exist: {A}")
+        sys.exit(1)
+    if not os.path.exists(B):
+        logging.error(f"Folder B does not exist: {B}")
+        print(f"ERROR: Folder B does not exist: {B}")
+        sys.exit(1)
+
+    missing_files, extra_files, present_files = compare_folders(A, B)
 
     if missing_files:
         logging.warning("==== Missing files ====")
@@ -199,10 +217,11 @@ if __name__ == "__main__":
     else:
         logging.info("All files from A exist in B!")
 
-    logging.info("==== Summary Report of comarison A and B ====")
+    logging.info("==== Summary Report of comparison A and B ====")
     logging.info(f"A = {A}")
     logging.info(f"B = {B}")
-    logging.info(f"Total processed: {counters['processed']}")
-    logging.info(f"Files unpacked from zips: {counters['unpacked']}")
-    logging.info(f"Files found: {counters['found']}")
-    logging.info(f"Files missing: {counters['missing']}")
+    logging.info(f"Total files in A: {len(set(list_files_in_folder(A)))}")
+    logging.info(f"Total files in B: {len(set(list_files_in_folder(B)))}")
+    logging.info(f"Files missing in B: {len(missing_files)}")
+    logging.info(f"Extra files in B: {len(extra_files)}")
+    logging.info(f"Files present in both: {len(present_files)}")

@@ -3,10 +3,12 @@ import zipfile
 import logging
 import sys
 import argparse
+import re
 
 # ---------------------------------------------
 # Logging setup
 # ---------------------------------------------
+'''
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s: %(message)s',
@@ -15,6 +17,26 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+'''
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)  # capture all levels
+
+# --- Console handler: INFO and below ---
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)  # INFO, DEBUG go to console
+console_formatter = logging.Formatter('%(message)s')
+console_handler.setFormatter(console_formatter)
+
+# --- File handler: WARNING and above ---
+file_handler = logging.FileHandler("compare_folders.log", mode='w', encoding='utf-8')
+file_handler.setLevel(logging.WARNING)  # WARNING, ERROR, CRITICAL go to file
+file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+file_handler.setFormatter(file_formatter)
+
+# --- Add handlers to logger ---
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
 
 # ---------------------------------------------
 # Argument parsing
@@ -24,6 +46,9 @@ def parse_args():
     parser.add_argument('--folder_a', type=str, help='Path to folder A')
     parser.add_argument('--folder_b', type=str, help='Path to folder B')
     parser.add_argument('--folders_file', type=str, help='File with two lines: pathA, pathB')
+    parser.add_argument("--find_string", help="Substring to replace in folder A")
+    parser.add_argument("--replace_string", help="String expected instead in folder B")
+
     return parser.parse_args()
 
 
@@ -176,7 +201,7 @@ def compare_folders_inside_zip_files_too(folder_a, folder_b):
     return missing, counters
 
 
-def compare_folders(folder_a, folder_b):
+def compare_folders_without_str_replace(folder_a, folder_b):
     files_a = set(list_files_in_folder(folder_a))
     #logging.info(f"files_a = {files_a}")
     files_b = set(list_files_in_folder(folder_b))
@@ -201,6 +226,32 @@ def compare_folders(folder_a, folder_b):
     return missing, extra, present
 
 
+# --- in compare_folders ---
+def compare_folders(folder_a, folder_b, find_string="", replace_string=""):
+    files_a_raw = list_files_in_folder(folder_a)
+    files_b_raw = list_files_in_folder(folder_b)
+
+    replacement_count = 0
+    files_a_normalized = set()
+    for p in files_a_raw:
+        new_path = normalize_path(p, find_string, replace_string)
+        if new_path != p:
+            replacement_count += 1
+        files_a_normalized.add(new_path)
+
+    files_b_normalized = {p.replace("\\", "/") for p in files_b_raw}
+
+    missing = files_a_normalized - files_b_normalized
+    extra = files_b_normalized - files_a_normalized
+    present = files_a_normalized & files_b_normalized
+
+    return missing, extra, present, replacement_count
+
+
+
+def extract_build(path):
+    m = re.search(r'(\d+)\.0$', path)
+    return m.group(1) if m else None
 
 # ---------------------------------------------
 # MAIN
@@ -216,30 +267,48 @@ if __name__ == "__main__":
         print("You must specify either --folders_file or both --folder_a and --folder_b")
         sys.exit(1)
 
-    # --- Add verification for folder existence ---
+    # --- verify existence ---
     if not os.path.exists(A):
         logging.error(f"Folder A does not exist: {A}")
         print(f"ERROR: Folder A does not exist: {A}")
         sys.exit(1)
+
     if not os.path.exists(B):
         logging.error(f"Folder B does not exist: {B}")
         print(f"ERROR: Folder B does not exist: {B}")
         sys.exit(1)
 
-    missing_files, extra_files, present_files = compare_folders(A, B)
+    # --- auto detect version numbers ---
+    build_A = extract_build(A)
+    build_B = extract_build(B)
 
-    if missing_files:
-        logging.warning("==== Missing files ====")
-        for f in missing_files:
-            logging.warning("  " + f)
+    if build_A and build_B:
+        find_string = build_A
+        replace_string = build_B
+        logging.info(f"Auto-detected version mapping: {find_string} -> {replace_string}")
     else:
-        logging.info("All files from A exist in B!")
+        find_string = ""
+        replace_string = ""
+        logging.info("No version numbers detected. Comparing files as-is.")
 
-    logging.info("==== Summary Report of comparison A and B ====")
-    logging.info(f"A = {A}")
-    logging.info(f"B = {B}")
-    logging.info(f"Total files in A: {len(set(list_files_in_folder(A)))}")
-    logging.info(f"Total files in B: {len(set(list_files_in_folder(B)))}")
-    logging.info(f"Files missing in B: {len(missing_files)}")
-    logging.info(f"Extra files in B: {len(extra_files)}")
-    logging.info(f"Files present in both: {len(present_files)}")
+    # ---- run compare ----
+    missing_files, extra_files, present_files, replacement_count = compare_folders(
+    A, B, find_string, replace_string
+)
+
+# --- summary logging ---
+logging.info("==== Summary Report of comparison A and B ====")
+logging.info(f"A = {A}")
+logging.info(f"B = {B}")
+
+if find_string and replace_string:
+    logging.info(f"Automatic replacement applied: '{find_string}' -> '{replace_string}'")
+    logging.info(f"Number of replacements: {replacement_count}")
+else:
+    logging.info("No version replacement applied")
+
+logging.info(f"Total files in A: {len(set(list_files_in_folder(A)))}")
+logging.info(f"Total files in B: {len(set(list_files_in_folder(B)))}")
+logging.info(f"Files missing in B: {len(missing_files)}")
+logging.info(f"Extra files in B: {len(extra_files)}")
+logging.info(f"Files present in both: {len(present_files)}")

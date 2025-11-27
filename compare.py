@@ -81,6 +81,24 @@ def list_files_in_folder(folder):
 
 
 # ---------------------------------------------
+# Noramlize path
+# ---------------------------------------------
+def normalize_path(path, find_string, replace_string):
+    """
+    Replace find_string with replace_string only inside file/folder names,
+    not touching directory separators.
+    """
+    base = os.path.basename(path)
+    dirpath = os.path.dirname(path)
+
+    # Only swap in basename
+    if find_string in base:
+        base = base.replace(find_string, replace_string)
+
+    return os.path.join(dirpath, base).replace("\\", "/")
+
+
+# ---------------------------------------------
 # Compare A → B
 # ---------------------------------------------
 def compare_folders_inside_zip_files_too(folder_a, folder_b):

@@ -228,25 +228,87 @@ def compare_folders_without_str_replace(folder_a, folder_b):
 
 # --- in compare_folders ---
 def compare_folders(folder_a, folder_b, find_string="", replace_string=""):
-    files_a_raw = list_files_in_folder(folder_a)
-    files_b_raw = list_files_in_folder(folder_b)
+    import os
+    import logging
 
+    def normalize_path_for_compare(rel_path, find_s, replace_s):
+        """Replace find_s -> replace_s inside relative path and normalize slashes."""
+        if not find_s:
+            return rel_path.replace("\\", "/")
+        return rel_path.replace(find_s, replace_s).replace("\\", "/")
+
+    # 1) Gather relative file lists
+    files_a = set(list_files_in_folder(folder_a))
+    files_b = set(list_files_in_folder(folder_b))
+
+    files_a = {p.replace("\\", "/") for p in files_a}
+    files_b = {p.replace("\\", "/") for p in files_b}
+
+    # 2) Prepare for version replacement
+    files_a_mapped = set()
+    replacements_log = []   # for replacements.txt
     replacement_count = 0
-    files_a_normalized = set()
-    for p in files_a_raw:
-        new_path = normalize_path(p, find_string, replace_string)
-        if new_path != p:
-            replacement_count += 1
-        files_a_normalized.add(new_path)
 
-    files_b_normalized = {p.replace("\\", "/") for p in files_b_raw}
+    if find_string and replace_string:
+        for original in files_a:
+            mapped = normalize_path_for_compare(original, find_string, replace_string)
+            if mapped != original:
+                replacement_count += 1
+                replacements_log.append(f"{original}  -->  {mapped}")
+            files_a_mapped.add(mapped)
+    else:
+        files_a_mapped = files_a.copy()
 
-    missing = files_a_normalized - files_b_normalized
-    extra = files_b_normalized - files_a_normalized
-    present = files_a_normalized & files_b_normalized
+    # 3) Compare sets
+    missing_files = files_a_mapped - files_b
+    extra_files   = files_b - files_a_mapped
+    present_files = files_a_mapped & files_b
 
-    return missing, extra, present, replacement_count
+    # 4) Build filenames (full folder names)
+    name_a = os.path.basename(os.path.normpath(folder_a))
+    name_b = os.path.basename(os.path.normpath(folder_b))
 
+    missing_filename = f"{name_a}_not_in_{name_b}.txt"
+    extra_filename   = f"{name_b}_not_in_{name_a}.txt"
+    present_filename = f"common_{name_a}__{name_b}.txt"
+    replacements_filename = "replacements.txt"
+
+    # 5) Write lists
+    with open(missing_filename, "w", encoding="utf-8") as f:
+        for rel in sorted(missing_files):
+            f.write(rel + "\n")
+
+    with open(extra_filename, "w", encoding="utf-8") as f:
+        for rel in sorted(extra_files):
+            f.write(rel + "\n")
+
+    with open(present_filename, "w", encoding="utf-8") as f:
+        for rel in sorted(present_files):
+            f.write(rel + "\n")
+
+    # 6) Write replacements file
+    if replacements_log:
+        with open(replacements_filename, "w", encoding="utf-8") as f:
+            for line in replacements_log:
+                f.write(line + "\n")
+
+    # 7) Logging summary
+    if find_string and replace_string:
+        logging.info(f"Automatic version replacement: '{find_string}' -> '{replace_string}'")
+        logging.info(f"Number of replaced paths: {replacement_count}")
+        logging.info(f"Saved detailed replacements to: {replacements_filename}")
+    else:
+        logging.info("No version replacement applied.")
+
+    logging.info(f"Saved missing list to: {missing_filename}")
+    logging.info(f"Saved extra list   to: {extra_filename}")
+    logging.info(f"Saved common list  to: {present_filename}")
+
+    logging.info(f"Missing: {len(missing_files)}")
+    logging.info(f"Extra:   {len(extra_files)}")
+    logging.info(f"Common:  {len(present_files)}")
+
+    return missing_files, extra_files, present_files, replacement_count
 
 
 def extract_build(path):

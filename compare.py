@@ -8,34 +8,28 @@ import re
 # ---------------------------------------------
 # Logging setup
 # ---------------------------------------------
-'''
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s: %(message)s',
-    handlers=[
-        logging.FileHandler("compare_folders.log", mode='w', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-'''
+
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)  # capture all levels
+logger.setLevel(logging.DEBUG)
 
-# --- Console handler: INFO and below ---
+# --- Console handler ---
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)  # INFO, DEBUG go to console
-console_formatter = logging.Formatter('%(message)s')
-console_handler.setFormatter(console_formatter)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter('%(message)s'))
 
-# --- File handler: WARNING and above ---
+# --- File handler ---
 file_handler = logging.FileHandler("compare_folders.log", mode='w', encoding='utf-8')
-file_handler.setLevel(logging.WARNING)  # WARNING, ERROR, CRITICAL go to file
-file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-file_handler.setFormatter(file_formatter)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
 
-# --- Add handlers to logger ---
+# --- Register handlers ---
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
+
+# --- Redirect root logger (IMPORTANT!) ---
+logging.getLogger().handlers = logger.handlers
+logging.getLogger().setLevel(logging.DEBUG)
+
 
 
 # ---------------------------------------------

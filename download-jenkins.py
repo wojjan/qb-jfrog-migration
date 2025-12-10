@@ -2,124 +2,162 @@ import subprocess
 import sys
 import argparse
 import logging
+import time
+import re
+from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.sax.saxutils import escape
 
-# Configure logging to both file and screen
+
+# ====== Logging ======
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s: %(message)s',
     handlers=[
-        logging.FileHandler("download_folder.log", mode='a'),
+        logging.FileHandler("download_folder.log", encoding="utf-8", mode='a'),
         logging.StreamHandler(sys.stdout)
     ]
 )
 
+error_logger = logging.getLogger("errors")
+fh = logging.FileHandler("errors.log", encoding="utf-8", mode="a")
+fh.setLevel(logging.ERROR)
+error_logger.addHandler(fh)
+
+# Regex
+saving_re = re.compile(r"Saving to:")
+percent_re = re.compile(r"(\d+)%")       # wget progres
+
+
 def download_with_wget(local_dir, base_url, username, password):
-    url = base_url  # lub aktualny URL z pętli
 
     cmd = [
-        "wget", "-d", "-r", "-np", "-nH", "--cut-dirs=1",
-        "--user", username,
-        "--password", password,
-        "-P", local_dir,
-        url
+        "wget", "-r", "-np", "-nH", "--cut-dirs=1",
+        "--user", username, "--password", password,
+        "-c",
+        "--retry-connrefused", "--tries=3", "--waitretry=5",
+        "-P", local_dir, base_url,
+        "--reject", "index.html"
     ]
 
-    # --- LOGI PRZED WYWOŁANIEM ---
-    logging.error(f"Running wget for URL: {url}")
-    logging.error(f"Target local folder: {local_dir}")
-    logging.error(f"Full command: {' '.join(cmd)}")
+    # ===== XML =====
+    root = Element("DownloadSession", start=time.strftime("%Y-%m-%dT%H:%M:%S"))
+    start_node = SubElement(root, "StartDownload")
+    SubElement(start_node, "url").text = base_url
+    SubElement(start_node, "output_dir").text = local_dir
+    SubElement(start_node, "command").text = " ".join(cmd)
 
-    result = subprocess.run(
-        cmd,
-        text=True,
-        capture_output=True
-    )
+    logging.info("⬇ Start download...")
 
-    # --- LOGUJEMY WYJŚCIE Z wget ---
-    logging.error("---- WGET STDOUT ----")
-    logging.error(result.stdout)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, bufsize=1)
 
-    logging.error("---- WGET STDERR ----")
-    logging.error(result.stderr)
+    full_log = open("download_raw.log", "a", encoding="utf-8")
 
-    # --- jeśli error, rzucamy wyjątek (jak wcześniej) ---
-    if result.returncode != 0:
-        raise subprocess.CalledProcessError(
-            result.returncode, cmd, output=result.stdout, stderr=result.stderr
-        )
+    file_count = 0                # ile plików wykryto
+    current_file = None
+    failed_files = []
+    last_progress = time.time()
 
 
+    # ===== STREAM z wget =====
+    for line in iter(process.stderr.readline, ''):
+        line = line.strip()
+        full_log.write(line + "\n")
 
-def load_token(path="c:\\repository\\qb-jenkins-migration\\token.txt"):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        logging.error(f"Plik {path} nie istnieje.")
-        exit(1)
+        # ------------------- Nowy plik --------------------
+        if line.startswith("Saving to:"):
+            m = re.search(r"Saving to: '(.+)'", line)
+            current_file = m.group(1) if m else line.replace("Saving to:", "").strip()
 
-
-def load_username(path="c:\\repository\\qb-jenkins-migration\\username.txt"):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        logging.error(f"Plik {path} nie istnieje.")
-        exit(1)
+            file_count += 1
+            print(f"\r📥 [{file_count}] {current_file}                          ",
+                  end="", flush=True)
+            logging.info(f"[{file_count}] -> {current_file}")
 
 
-def load_login_data(path="c:\\repository\\qb-jenkins-migration\\jenkins-login.txt"):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f if line.strip()]
-            if len(lines) < 2:
-                logging.error(
-                    f"Argument file {path} must have at least 2 lines (username, token/password)."
-                )
-                exit(1)
-            return lines[0], lines[1]
-    except FileNotFoundError:
-        logging.error(f"Argument file {path} does not exist.")
-        exit(1)
+        # ------------------- Progress ---------------------
+        m = percent_re.search(line)
+        if m and time.time() - last_progress > 1:
+            print(f"\r⏳ {m.group(1)}% | 📄[{file_count}] {current_file}   ",
+                  end="", flush=True)
+            last_progress = time.time()
 
+
+        # ------------------- Błędy ------------------------
+        # Sprawdzenie błędów wget, ale nie nazw plików
+            if ("error" in line.lower() and "Saving to" not in line) or \
+               "failed:" in line.lower() or \
+           "404" in line:
+
+                err = f"[{current_file}] {line}"
+                failed_files.append(err)
+                error_logger.error(err)
+
+                e = SubElement(root, "Error")
+                e.text = escape(err)
+
+                print(f"\n❌ ERROR in file [{file_count}] {current_file} → log saved")
+
+
+    stdout, stderr = process.communicate()
+    full_log.close()
+
+    # ===== XML wynik =====
+    result = SubElement(root, "WgetResult")
+    SubElement(result, "returncode").text = str(process.returncode)
+    SubElement(result, "stdout").text = escape((stdout or "").strip())
+    SubElement(result, "stderr").text = escape((stderr or "").strip())
+    SubElement(result, "files_downloaded").text = str(file_count)
+
+    if failed_files:
+        f_node = SubElement(root, "FailedFiles")
+        for f in failed_files:
+            SubElement(f_node, "file").text = escape(f)
+
+    with open("download.xml", "wb") as f:
+        f.write(tostring(root, encoding="utf-8"))
+
+
+    print(f"\n\n📦 TOTAL files processed: {file_count}")
+    if failed_files:
+        print(f"⚠ Failed files: {len(failed_files)} | see errors.log & download.xml")
+    else:
+        print("✅ Finished without errors")
+
+
+# ===== Helpers =====
+def load_file_1line(path):
+    return open(path, "r", encoding="utf-8").read().strip()
+
+def load_login_data(path="jenkins-login.txt"):
+    u, p = open(path, "r", encoding="utf-8").read().splitlines()[:2]
+    return u.strip(), p.strip()
 
 def load_args_from_file(path):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f if line.strip()]
-            if len(lines) < 2:
-                logging.error(
-                    f"Argument file {path} must have at least 2 lines (local_dir, base_url)."
-                )
-                exit(1)
-            return lines[0], lines[1]
-    except FileNotFoundError:
-        logging.error(f"Argument file {path} does not exist.")
-        exit(1)
+    with open(path, "r", encoding="utf-8") as f:
+        a, b = [x.strip() for x in f if x.strip()][:2]
+        return a, b
 
 
+# ===== Main =====
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Download files using wget with authentication.")
-    parser.add_argument("local_dir", nargs="?", help="Local directory to save downloads")
-    parser.add_argument("base_url", nargs="?", help="Base URL to download from")
-    parser.add_argument("--args_file", help="Path to file containing arguments")
-    parser.add_argument("--login_file", help="Path to file containing login data")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("local_dir", nargs="?")
+    parser.add_argument("base_url", nargs="?")
+    parser.add_argument("--args_file")
+    parser.add_argument("--login_file")
     args = parser.parse_args()
 
     if args.args_file:
         local_dir, base_url = load_args_from_file(args.args_file)
-        logging.info(f"local_dir = {local_dir}")
-        logging.info(f"base_url = {base_url}")
+    else:
+        local_dir = args.local_dir
+        base_url = args.base_url
 
     if args.login_file:
         username, password = load_login_data(args.login_file)
     else:
-        username = load_username()
-        password = load_token()
-
-        # If args_file not used, load CLI args
-        if not args.args_file:
-            local_dir = args.local_dir
-            base_url = args.base_url
+        username = load_file_1line("username.txt")
+        password = load_file_1line("token.txt")
 
     download_with_wget(local_dir, base_url, username, password)

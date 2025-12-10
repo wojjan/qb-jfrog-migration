@@ -265,7 +265,7 @@ def compare_folders(folder_a, folder_b, find_string="", replace_string=""):
     missing_filename = f"{name_a}_not_in_{name_b}.txt"
     extra_filename   = f"{name_b}_not_in_{name_a}.txt"
     present_filename = f"common_{name_a}__{name_b}.txt"
-    replacements_filename = "replacements.txt"
+    replacements_filename = f"replace_{name_a}_to_{name_b}.txt"
 
     # 5) Write lists
     with open(missing_filename, "w", encoding="utf-8") as f:
@@ -305,9 +305,33 @@ def compare_folders(folder_a, folder_b, find_string="", replace_string=""):
     return missing_files, extra_files, present_files, replacement_count
 
 
-def extract_build(path):
+def extract_build_1(path):
     m = re.search(r'(\d+)\.0$', path)
     return m.group(1) if m else None
+
+
+def extract_build_2(name: str):
+    """
+    Wyciąga dwie ostatnie liczby wersji przed końcowym rozszerzeniem.
+    SPS_E5_06.00.05.147.0 -> 05.147
+    """
+    m = re.search(r"(\d+)\.(\d+)\.\d+$", name)   # łapie np. 05.147.0 → (05)(147)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}"
+    return None
+
+
+def extract_build(name: str):
+    """
+    Wyciąga trzy ostatnie części wersji przed ostatnią kropką.
+    SPS_E5_06.00.05.147.0 -> 00.05.147
+    SPS_E5_06.01.04.226.0 -> 01.04.226
+    """
+    # Szuka sekwencji np. 00.05.147.0 → (00)(05)(147)
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)\.\d+$", name)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
+    return None
 
 # ---------------------------------------------
 # MAIN

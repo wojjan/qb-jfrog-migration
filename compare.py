@@ -5,10 +5,16 @@ import zipfile
 import argparse
 import re
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(SCRIPT_DIR)
+
+print("CWD =", os.getcwd())
+
 # =====================================================
 # LOGGING SETUP
 # =====================================================
 root = logging.getLogger()
+
 for h in root.handlers[:]:
     root.removeHandler(h)
 root.setLevel(logging.DEBUG)
@@ -96,99 +102,136 @@ def file_in_zip(zip_path, inner_path):
     try:
         with zipfile.ZipFile(zip_path, 'r') as z:
             found = any(name.endswith(inner_norm) for name in z.namelist())
-            diag.debug(f"Checking ZIP: {zip_path}, inner={inner_norm}, found={found}")
+            diag.info(f"Checking ZIP: {zip_path}, inner={inner_norm}, found={found}")
             return found
     except Exception as e:
-        diag.debug(f"Error reading ZIP {zip_path}: {e}")
+        diag.info(f"Error reading ZIP {zip_path}: {e}")
         return False
 
 # =====================================================
 # HELPER: find file in B
 # =====================================================
 def find_file_in_B(mapped_rel, folder_B):
-    filename = os.path.basename(mapped_rel)
-    for root, _, files in os.walk(folder_B):
-        if filename in files:
-            return os.path.join(root, filename)
+    candidate = os.path.join(folder_B, mapped_rel)
+    if os.path.exists(candidate):
+        return candidate
     return None
+
+
 
 # =====================================================
 # COMPARE FUNCTION
 # =====================================================
 def compare_folders_verbose(folder_a, folder_b, find_string="", replace_string=""):
+    """
+    Strict comparison:
+    - relative path from A (after replace) MUST exist in B
+    - optional ZIP inspection only if path points to a .zip
+    """
+
     files_a = list_files_in_folder(folder_a)
-    counters = {'processed':0, 'found':0, 'missing':0}
+
+    counters = {
+        'processed': 0,
+        'found': 0,
+        'missing': 0,
+        'found_in_zip': 0,
+    }
+
     missing = []
     present = []
 
     for rel in files_a:
         counters['processed'] += 1
-        diag.debug("="*50)
-        diag.debug(f"File [{counters['processed']}]: {rel}")
 
-        # Apply replacement
+        diag.info("=" * 60)
+        diag.info(f"File [{counters['processed']}]: {rel}")
+
+        # --- normalize + version replace
         mapped_rel = normalize_path_for_compare(rel, find_string, replace_string)
-        diag.debug(f"Mapped path after replace: {mapped_rel}")
+        mapped_rel = mapped_rel.replace("\\", "/")
+        diag.info(f"Mapped relative path: {mapped_rel}")
 
-        # Step 1: direct search in B
-        target_full = find_file_in_B(mapped_rel, folder_b)
-        found_in_zip = False
-        if target_full:
-            diag.debug(f"[OK] Found in B at {target_full}")
+        # --- STRICT relative-path match in B
+        candidate = os.path.join(folder_b, mapped_rel)
+
+        if os.path.exists(candidate):
+            diag.info(f"[OK] Found by relative path: {candidate}")
             counters['found'] += 1
             present.append(rel)
             continue
 
-        # Step 2: search inside ZIPs
-        parts = mapped_rel.split(os.sep)
-        for i in range(len(parts)):
-            if parts[i].lower().endswith(".zip"):
-                zip_path = os.path.join(folder_b, *parts[:i+1])
-                inner_file = os.path.join(*parts[i+1:]) if i+1 < len(parts) else None
-                diag.debug(f"Checking ZIP: {zip_path}, inner={inner_file}")
-                if os.path.exists(zip_path) and inner_file and file_in_zip(zip_path, inner_file):
-                    diag.debug(f"[OK] Found inside ZIP: {zip_path}")
-                    counters['found'] += 1
-                    present.append(rel)
-                    found_in_zip = True
-                    break
+        # --- ZIP check (ONLY if mapped_rel contains .zip in path)
+        found_in_zip = False
+        parts = mapped_rel.split("/")
+
+        for i, part in enumerate(parts):
+            if part.lower().endswith(".zip"):
+                zip_path = os.path.join(folder_b, *parts[:i + 1])
+                inner_path = "/".join(parts[i + 1:]) if i + 1 < len(parts) else None
+
+                diag.info(f"Checking ZIP: {zip_path}, inner={inner_path}")
+
+                if inner_path and os.path.exists(zip_path):
+                    if file_in_zip(zip_path, inner_path):
+                        diag.info(f"[OK] Found inside ZIP: {zip_path} -> {inner_path}")
+                        counters['found'] += 1
+                        counters['found_in_zip'] += 1
+                        present.append(rel)
+                        found_in_zip = True
+                        break
 
         if not found_in_zip:
-            diag.debug("[MISSING] File not found anywhere")
+            diag.info("[MISSING] No strict match (path or ZIP)")
             counters['missing'] += 1
             missing.append(rel)
 
-    diag.debug("="*50)
-    diag.debug(f"Summary: processed={counters['processed']}, found={counters['found']}, missing={counters['missing']}")
+    diag.info("=" * 60)
+    diag.info(
+        f"Summary: processed={counters['processed']}, "
+        f"found={counters['found']} (zip={counters['found_in_zip']}), "
+        f"missing={counters['missing']}"
+    )
 
-    # --- Write result files ---
+    # =================================================
+    # RESULT FILES
+    # =================================================
     name_a = os.path.basename(os.path.normpath(folder_a))
     name_b = os.path.basename(os.path.normpath(folder_b))
 
     missing_filename = f"{name_a}_not_in_{name_b}.txt"
     present_filename = f"common_{name_a}__{name_b}.txt"
-    extra_filename = f"{name_b}_not_in_{name_a}.txt"
+    extra_filename   = f"{name_b}_not_in_{name_a}.txt"
 
+    # --- missing
     with open(missing_filename, "w", encoding="utf-8") as f:
         for rel in sorted(missing):
             f.write(rel + "\n")
 
+    # --- present
     with open(present_filename, "w", encoding="utf-8") as f:
         for rel in sorted(present):
             f.write(rel + "\n")
 
-    # extra files: w B, których nie ma w A
-    files_b_all = list_files_in_folder(folder_b)
+    # --- extra in B (STRICT by relative path)
+    files_b = list_files_in_folder(folder_b)
+    a_rel_set = set(
+        normalize_path_for_compare(r, find_string, replace_string).replace("\\", "/")
+        for r in files_a
+    )
+
     extra = []
-    a_basenames = set([os.path.basename(f) for f in files_a])
-    for f in files_b_all:
-        if os.path.basename(f) not in a_basenames:
-            extra.append(f)
+    for rel_b in files_b:
+        rel_b_norm = rel_b.replace("\\", "/")
+        if rel_b_norm not in a_rel_set:
+            extra.append(rel_b)
+
     with open(extra_filename, "w", encoding="utf-8") as f:
         for rel in sorted(extra):
             f.write(rel + "\n")
 
     return missing, present, extra, counters
+
 
 # =====================================================
 # MAIN
@@ -223,12 +266,24 @@ if __name__ == "__main__":
 
     missing_files, present_files, extra_files, counters = compare_folders_verbose(A, B, find_string, replace_string)
 
-    logging.info("==== Summary Report ====")
-    logging.info(f"A = {A}")
-    logging.info(f"B = {B}")
+    summary_lines = [
+    "==== Summary Report ====",
+    f"A = {A}",
+    f"B = {B}",
+    ]
+
     if find_string and replace_string:
-        logging.info(f"Automatic replacement applied: '{find_string}' -> '{replace_string}'")
-    logging.info(f"Total files in A: {len(list_files_in_folder(A))}")
-    logging.info(f"Files missing in B: {len(missing_files)}")
-    logging.info(f"Files found in B: {len(present_files)}")
-    logging.info(f"Extra files in B: {len(extra_files)}")
+        summary_lines.append(
+            f"Automatic replacement applied: '{find_string}' -> '{replace_string}'"
+        )
+
+    summary_lines.extend([
+        f"Total files in A: {len(list_files_in_folder(A))}",
+        f"Files missing in B: {len(missing_files)}",
+        f"Files found in B: {len(present_files)}",
+        f"Extra files in B: {len(extra_files)}",
+    ])
+
+    for line in summary_lines:
+        logging.info(line)   # do plików
+        #print(line)          # ZAWSZE do konsoli

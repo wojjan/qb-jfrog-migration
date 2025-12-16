@@ -232,6 +232,31 @@ def compare_folders_verbose(folder_a, folder_b, find_string="", replace_string="
 
     return missing, present, extra, counters
 
+# =================================================
+# RENAME LOg FILES
+# =================================================
+def rename_logs(build_A: str, build_B: str):
+    if not build_A or not build_B:
+        logging.info("Skipping log rename – version not detected")
+        return
+
+    prefix = f"{build_A}__{build_B}"
+
+    mapping = {
+        "compare_folders.log": f"{prefix}__compare_folders.log",
+        "summary.log": f"{prefix}__summary.log",
+        "diagnostic.log": f"{prefix}__diagnostic.log",
+    }
+
+    # zamknij handlery (Windows!)
+    logging.shutdown()
+
+    for src, dst in mapping.items():
+        if os.path.exists(src):
+            try:
+                os.replace(src, dst)  # atomic rename
+            except Exception as e:
+                print(f"Failed to rename {src} -> {dst}: {e}")
 
 # =====================================================
 # MAIN
@@ -255,6 +280,12 @@ if __name__ == "__main__":
 
     build_A = extract_build(A)
     build_B = extract_build(B)
+
+    if build_A and build_B:
+        log_prefix = f"{build_A}__{build_B}"
+    else:
+        log_prefix = "NO_VERSION"
+
     if build_A and build_B:
         find_string = build_A
         replace_string = build_B
@@ -287,3 +318,5 @@ if __name__ == "__main__":
     for line in summary_lines:
         logging.info(line)   # do plików
         #print(line)          # ZAWSZE do konsoli
+
+    rename_logs(build_A, build_B)

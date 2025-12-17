@@ -1,0 +1,1 @@
+py and bat scripts to help at comparison of the JFrog (jf) builds against the Quick Build (qb) builds. The qb build serves as a reference to which jf one is being compared. The qb builds works as a target of the qb-jf migration process.

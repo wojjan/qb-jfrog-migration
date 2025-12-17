@@ -10,3 +10,4 @@
 
 # Allow single files
 !/*.py
+!/*.bat

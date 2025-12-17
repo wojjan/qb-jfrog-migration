@@ -19,7 +19,7 @@ python.exe c:/repository/qb-jenkins-migration/compare.py ^
 Input file format
 
 The file specified by --folders_file must contain two paths, one per line:
-
+```bash
 C:\repository\qb-jenkins-migration\download-qb\EagleStream-R\SPS_E5_06.01.04.226.0
 C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\SPS_E5_06.00.05.150.0
 
@@ -33,6 +33,7 @@ Output Files
 Each comparison produces six output files.
 
 Log files
+```bash
 06.01.04.226.0__06.00.05.150.0__compare_folders.log
 06.01.04.226.0__06.00.05.150.0__diagnostic.log
 06.01.04.226.0__06.00.05.150.0__summary.log
@@ -45,6 +46,7 @@ diagnostic.log – detailed per-file diagnostics
 summary.log – high-level summary of the comparison
 
 Result files
+```bash
 common_SPS_E5_06.01.04.226.0__SPS_E5_06.00.05.150.0.txt
 SPS_E5_06.00.05.150.0_not_in_SPS_E5_06.01.04.226.0.txt
 SPS_E5_06.01.04.226.0_not_in_SPS_E5_06.00.05.150.0.txt

@@ -24,3 +24,4 @@ C:\JF\jf.exe rt dl ^
   --threads=16 ^
   "%REMOTE_ROOT%/%SUBFOLDER%/(**/*)" ^
   "%LOCAL_ROOT%/%SUBFOLDER%/{1}"
+ 

@@ -3,3 +3,4 @@ C:\JF\jf.exe c add igk-artifactory ^
   --access-token=<user_token> ^
   --user=<user> ^
   --interactive=false
+  

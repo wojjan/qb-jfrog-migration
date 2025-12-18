@@ -44,34 +44,32 @@ Each comparison produces **six output files**.
 
 ### Log Files
 
-06.01.04.226.0__06.00.05.150.0__compare_folders.log  
-06.01.04.226.0__06.00.05.150.0__diagnostic.log  
-06.01.04.226.0__06.00.05.150.0__summary.log  
+<detected_folder_a_version>__<detected_folder_b_version>__compare_folders.log  
+<detected_folder_a_version>__<detected_folder_b_version>__diagnostic.log  
+<detected_folder_a_version>__<detected_folder_b_version>__summary.log  
 
-compare_folders.log  
+<detected_folder_a_version>__<detected_folder_b_version>__compare_folders.log  
 Main comparison log
 
-diagnostic.log  
+<detected_folder_a_version>__<detected_folder_b_version>__diagnostic.log  
 Detailed per-file diagnostics
 
-summary.log  
+<detected_folder_a_version>__<detected_folder_b_version>__summary.log  
 High-level comparison summary
-
----
 
 ### Result Files
 
-common_SPS_E5_06.01.04.226.0__SPS_E5_06.00.05.150.0.txt  
-SPS_E5_06.00.05.150.0_not_in_SPS_E5_06.01.04.226.0.txt  
-SPS_E5_06.01.04.226.0_not_in_SPS_E5_06.00.05.150.0.txt  
+common_<detected_folder_a_version>__<detected_folder_b_version>__summary.txt  
+<detected_folder_a_version>_not_<detected_folder_b_version>.txt  
+<detected_folder_a_version>_not_in_<detected_folder_b_version>.txt  
 
-common_*.txt  
+common_<detected_folder_a_version>__<detected_folder_b_version>__summary.txt 
 Files present in **both** qb and jf builds
 
-<jf>_not_in_<qb>.txt  
+<detected_folder_a_version>_not_<detected_folder_b_version>.txt 
 Files present in the **JFrog build** but missing from the Quick Build
 
-<qb>_not_in_<jf>.txt  
+<detected_folder_a_version>_not_in_<detected_folder_a_version>.txt  
 Files present in the **Quick Build** but missing from the JFrog build  
 This is the **most important comparison result**.
 

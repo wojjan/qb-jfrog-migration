@@ -50,10 +50,20 @@ diag.addHandler(diag_handler)
 # ARGUMENTS
 # =====================================================
 def parse_args():
-    parser = argparse.ArgumentParser(description="Compare two folders with version replacement and ZIP support.")
+    parser = argparse.ArgumentParser(
+        description="Compare two folders with version replacement and ZIP support."
+    )
+
     parser.add_argument('--folder_a', type=str, help='Path to folder A')
     parser.add_argument('--folder_b', type=str, help='Path to folder B')
     parser.add_argument('--folders_file', type=str, help='File with two lines: pathA, pathB')
+
+    parser.add_argument(
+        "--zip-search",
+        action="store_true",
+        help="Enable searching for files inside ZIP archives (default: disabled)"
+    )
+
     return parser.parse_args()
 
 def get_folders_from_file(file_path):
@@ -61,11 +71,14 @@ def get_folders_from_file(file_path):
     if not os.path.exists(abs_path):
         logging.error(f"Input file not found: {abs_path}")
         sys.exit(1)
-    with open(abs_path, 'r', encoding='utf-8') as f:
+
+    with open(abs_path, "r", encoding="utf-8") as f:
         lines = [line.strip() for line in f if line.strip()]
+
     if len(lines) < 2:
-        logging.error(f"{abs_path} must contain at least two lines")
+        logging.error(f"{abs_path} must contain at least two non-empty lines")
         sys.exit(1)
+
     logging.info(f"Folder A = {lines[0]}")
     logging.info(f"Folder B = {lines[1]}")
     return lines[0], lines[1]
@@ -122,7 +135,14 @@ def find_file_in_B(mapped_rel, folder_B):
 # =====================================================
 # COMPARE FUNCTION
 # =====================================================
-def compare_folders_verbose(folder_a, folder_b, find_string="", replace_string=""):
+def compare_folders_verbose(
+    folder_a,
+    folder_b,
+    find_string="",
+    replace_string="",
+    zip_search=False
+    ):
+    
     """
     Strict comparison:
     - relative path from A (after replace) MUST exist in B
@@ -161,25 +181,28 @@ def compare_folders_verbose(folder_a, folder_b, find_string="", replace_string="
             present.append(rel)
             continue
 
-        # --- ZIP check (ONLY if mapped_rel contains .zip in path)
         found_in_zip = False
-        parts = mapped_rel.split("/")
 
-        for i, part in enumerate(parts):
-            if part.lower().endswith(".zip"):
-                zip_path = os.path.join(folder_b, *parts[:i + 1])
-                inner_path = "/".join(parts[i + 1:]) if i + 1 < len(parts) else None
+        if zip_search:
+            parts = mapped_rel.split("/")
 
-                diag.info(f"Checking ZIP: {zip_path}, inner={inner_path}")
+            for i, part in enumerate(parts):
+                if part.lower().endswith(".zip"):
+                    zip_path = os.path.join(folder_b, *parts[:i + 1])
+                    inner_path = "/".join(parts[i + 1:]) if i + 1 < len(parts) else None
 
-                if inner_path and os.path.exists(zip_path):
-                    if file_in_zip(zip_path, inner_path):
-                        diag.info(f"[OK] Found inside ZIP: {zip_path} -> {inner_path}")
-                        counters['found'] += 1
-                        counters['found_in_zip'] += 1
-                        present.append(rel)
-                        found_in_zip = True
-                        break
+                    diag.info(f"Checking ZIP: {zip_path}, inner={inner_path}")
+
+                    if inner_path and os.path.exists(zip_path):
+                        if file_in_zip(zip_path, inner_path):
+                            diag.info(f"[OK] Found inside ZIP: {zip_path} -> {inner_path}")
+                            counters['found'] += 1
+                            counters['found_in_zip'] += 1
+                            present.append(rel)
+                            found_in_zip = True
+                            break
+        else:
+            diag.info("ZIP search disabled")
 
         if not found_in_zip:
             diag.info("[MISSING] No strict match (path or ZIP)")
@@ -263,6 +286,8 @@ def rename_logs(build_A: str, build_B: str):
 # =====================================================
 if __name__ == "__main__":
     args = parse_args()
+    logging.info(f"ZIP search enabled: {args.zip_search}")
+
     if args.folders_file:
         A, B = get_folders_from_file(args.folders_file)
     elif args.folder_a and args.folder_b:
@@ -295,7 +320,13 @@ if __name__ == "__main__":
         replace_string = ""
         logging.info("No version numbers detected. Comparing files as-is.")
 
-    missing_files, present_files, extra_files, counters = compare_folders_verbose(A, B, find_string, replace_string)
+    missing_files, present_files, extra_files, counters = compare_folders_verbose(
+        A,
+        B,
+        find_string,
+        replace_string,
+        zip_search=args.zip_search
+        )
 
     summary_lines = [
     "==== Summary Report ====",

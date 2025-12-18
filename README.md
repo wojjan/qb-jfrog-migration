@@ -1,4 +1,4 @@
-"# QB–JF Build Comparison Tools
+# QB–JF Build Comparison Tools
 
 This repository contains Python (`.py`) and Windows batch (`.bat`) scripts used to compare **JFrog (jf) builds** against **Quick Build (qb) builds**.
 
@@ -9,8 +9,9 @@ The comparison process consists of three stages:
 
 1. Manually download the required **qb** build. Just navigate to the remote qb build, download the Artifactory zip and unpack it locally.
 2. Download the required **jf** build using the batch scripts:  
-   a. `jf-config.bat` – configure server access for your user and the specific Artifactory. This step is required once per user and Artifactory.
-   b. `jf-dl.bat` – download the JFrog build. This step is 
+   a. `jf-config.bat` – configure server access for your user and the specific Artifactory. Please edit this file with your user name and Artifactory token. This step is required once per user and Artifactory.
+   b. `jf-dl.bat jf-dl.bat <local relative path>` – download the JFrog build. This step is repeated each compare cycle. Example:
+   `jf-dl.bat jf-dl.bat SPS-5.0/Tatlow-PC/SPS_E3_06.00.03.060.0`
 3. Compare the two builds using the Python script.  
 
 ## compare.py – Usage
@@ -85,4 +86,4 @@ When `--zip-search` is enabled:
 - Build version numbers are **automatically detected and mapped**  
 - Version replacement is applied only when versions are detected  
 - Path comparison uses **normalized relative paths**  
-- Logs are automatically renamed using detected build versions"
+- Logs are automatically renamed using detected build versions

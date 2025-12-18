@@ -26,7 +26,7 @@ ZIP search is **disabled by default**.
 
 ## Input File Format
 
-The file specified by `--folders_file` must contain **two paths**, one per line:
+The file specified by `--folders_file` must contain **two paths**, one per line like in the example below:
 
 C:\repository\qb-jenkins-migration\download-qb\EagleStream-R\SPS_E5_06.01.04.226.0  
 C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\SPS_E5_06.00.05.150.0  
@@ -62,8 +62,8 @@ High-level comparison summary
 ### Result Files
 
 common_<folder_A_version>__<folder_B_version>.txt  
-<folder_B_version>_not_in_<folder_A_version>.txt  
-<folder_A_version>_not_in_<folder_B_version>.txt  
+`<folder_B_version>_not_in_<folder_A_version>.txt`
+`<folder_A_version>_not_in_<folder_B_version>.txt`
 
 **common_*.txt**  
 Files present in **both** qb and jf builds

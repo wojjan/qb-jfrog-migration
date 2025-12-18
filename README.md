@@ -48,13 +48,13 @@ Each comparison produces **six output files**.
 <folder_A_version>__<folder_B_version>__diagnostic.log  
 <folder_A_version>__<folder_B_version>__summary.log  
 
-**compare_folders.log**  
+**<folder_A_version>__<folder_B_version>__compare_folders.log**  
 Main comparison log
 
-**diagnostic.log**  
+**<folder_A_version>__<folder_B_version>__diagnostic.log**  
 Detailed per-file diagnostics
 
-**summary.log**  
+**<folder_A_version>__<folder_B_version>__summary.log**  
 High-level comparison summary
 
 ---
@@ -63,6 +63,7 @@ High-level comparison summary
 
 common_<folder_A_version>__<folder_B_version>.txt  
 `<folder_B_version>_not_in_<folder_A_version>.txt`
+
 `<folder_A_version>_not_in_<folder_B_version>.txt`
 
 **common_*.txt**  

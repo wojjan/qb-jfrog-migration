@@ -29,10 +29,12 @@ ZIP search is **disabled by default**.
 The file specified by `--folders_file` must contain **two paths**, one per line:
 
 C:\repository\qb-jenkins-migration\download-qb\EagleStream-R\SPS_E5_06.01.04.226.0  
-C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\SPS_E5_06.00.05.150.0
+C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\SPS_E5_06.00.05.150.0  
 
 Line 1: **Quick Build (qb)** directory — reference build  
-Line 2: **JFrog (jf)** directory — build under comparison
+Line 2: **JFrog (jf)** directory — build under comparison  
+
+Alternatively, the reference build and the build under comparison can be provided directly using the `--folder_a` and `--folder_b` options, respectively.
 
 ---
 
@@ -71,7 +73,7 @@ Files present in the **JFrog build** but missing from the Quick Build
 
 <qb>_not_in_<jf>.txt  
 Files present in the **Quick Build** but missing from the JFrog build  
-This is the **most important comparison result**
+This is the **most important comparison result**.
 
 ---
 

@@ -7,13 +7,11 @@ These tools support validation of the **qb → jf migration process**.
 
 The comparison process consists of three stages:
 
-1. Manually download the required **qb** build.  
+1. Manually download the required **qb** build. Just navigate to the remote qb build, download the Artifactory zip and unpack it locally.
 2. Download the required **jf** build using the batch scripts:  
-   a. `jf-config.bat` – configure server access for your user and the specific Artifactory.  
-   b. `jf-dl.bat` – download the JFrog build.  
+   a. `jf-config.bat` – configure server access for your user and the specific Artifactory. This step is required once per user and Artifactory.
+   b. `jf-dl.bat` – download the JFrog build. This step is 
 3. Compare the two builds using the Python script.  
-
----
 
 ## compare.py – Usage
 

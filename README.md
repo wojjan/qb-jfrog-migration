@@ -4,8 +4,16 @@ This repository contains Python (`.py`) and Windows batch (`.bat`) scripts used 
 
 The **Quick Build (qb)** output is treated as the **reference build**, while the **JFrog (jf)** build is the one being verified.  
 These tools support validation of the **qb → jf migration process**.
-
+The comparison process contains 3 stages:
+1. Manual downloading the required qb build
+2. Downloading with a bat script the required jf build
+3. Comparison of the two above
 ---
+1. Navigate to required qb artifactory zip file, download it and unpack at given local qb location.
+2. Before the jf download script can be run for the first time, the server must be configured for the user and the specific artifactory.
+   a. jf-config.bat
+   b. jf-dl.bat
+3. Comparison
 
 ## compare.py – Usage
 

@@ -35,8 +35,8 @@ python.exe c:/repository/qb-jenkins-migration/compare.py \
 
 The file specified by `--folders_file` must contain **two paths**, one per line, for example (like in attached compare-input-files.txt file):
 
-C:\repository\qb-jenkins-migration\download-qb\EagleStream-R\SPS_E5_06.01.04.226.0  
-C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\EagleStream-R\SPS_E5_06.00.05.150.0  
+C:\repository\qb-jenkins-migration\download-qb\Catlow-PV\SPS_E3_06.03.04.080.0
+C:\repository\qb-jenkins-migration\download-jenkins\pact_sps_prod-igk-local\SPS-5.0\Catlow-PV\SPS_E3_06.02.03.089.9 
 
 - **Line 1:** Quick Build (**qb**) directory — reference build  
 - **Line 2:** JFrog (**jf**) directory — build under comparison  
